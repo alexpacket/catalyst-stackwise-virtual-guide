@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cisco Catalyst 9500 StackWise Virtual — Dual-Active Detection Lab</title>
+<meta name="description" content="Step-through lab for Catalyst 9500 StackWise Virtual: SSO, SVL split, Fast Hello and ePAgP dual-active detection, with release history, platform limits, caveats and configuration.">
+<link rel="canonical" href="https://alexpacket.github.io/catalyst-stackwise-virtual-guide/">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: brand kit from the SD-WAN Manager API field guide — sticky sidebar TOC, 920px main column, thick-rule section heads, figure with control bar */
+:root{
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#F7F9FB; --panel:#FFFFFF; --ink:#12263A; --ink-2:#44576A; --ink-3:#7C8B99;
+  --rule:#D5DEE7; --rule-2:#E6ECF2; --accent:#0A7BB8; --accent-soft:#E3F1FA;
+  --amber:#B7791F; --amber-soft:#FBF1DC; --green:#2C7A5B; --green-soft:#E1F1EA;
+  --red:#B54141; --red-soft:#F8E4E4; --code-bg:#0F1E2E; --code-ink:#DCE6F0;
+  --code-c:#7FA5C6; --code-k:#F4BF75; --code-s:#A6E3A1;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E1720; --panel:#152130; --ink:#E6EDF3; --ink-2:#B4C1CE; --ink-3:#7E8D9C;
+  --rule:#2B3947; --rule-2:#1F2B38; --accent:#4FB3E8; --accent-soft:#12324A;
+  --amber:#E0A93F; --amber-soft:#3A2D12; --green:#5FC493; --green-soft:#12342A;
+  --red:#E07A7A; --red-soft:#3D1C1C; --code-bg:#0A131C; --code-ink:#D5E0EA; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0E1720; --panel:#152130; --ink:#E6EDF3; --ink-2:#B4C1CE; --ink-3:#7E8D9C;
+  --rule:#2B3947; --rule-2:#1F2B38; --accent:#4FB3E8; --accent-soft:#12324A;
+  --amber:#E0A93F; --amber-soft:#3A2D12; --green:#5FC493; --green-soft:#12342A;
+  --red:#E07A7A; --red-soft:#3D1C1C; --code-bg:#0A131C; --code-ink:#D5E0EA; color-scheme:dark }
+:root[data-theme="light"]{color-scheme:light}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 16px);scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{transition:none!important}}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+code,pre{font-family:var(--mono)}
+code{font-size:.88em;background:var(--rule-2);padding:.1em .35em;border-radius:3px;color:var(--ink)}
+pre code{background:none;padding:0;color:inherit}
+
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr)}
+nav.side{position:sticky;top:env(safe-area-inset-top,0px);height:100vh;height:100dvh;overflow:auto;border-right:1px solid var(--rule);background:var(--panel);padding:24px 18px 24px max(18px,env(safe-area-inset-left,0px))}
+nav.side .brand{font-weight:700;font-size:15px;line-height:1.3;margin:0 0 4px}
+nav.side .sub{color:var(--ink-3);font-size:12.5px;margin:0 0 18px}
+nav.side ol{list-style:none;margin:0;padding:0}
+nav.side li a{display:block;padding:6px 8px;border-radius:5px;color:var(--ink-2);text-decoration:none;font-size:13.5px}
+nav.side li a:hover{background:var(--rule-2);color:var(--ink)}
+nav.side li a.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+nav.side li.group{margin-top:14px;font-size:11.5px;color:var(--ink-3);padding:0 8px 4px;border-bottom:1px solid var(--rule-2);margin-bottom:4px}
+nav.side .legend{margin-top:22px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--rule-2);padding-top:14px}
+nav.side .legend div{display:flex;gap:8px;align-items:center;margin:5px 0}
+.sw{width:12px;height:12px;border-radius:3px;flex:none}
+.sw.line{height:3px;width:16px;border-radius:2px}
+.sw.dash{height:0;width:16px;border-radius:0;border-top:3px dashed currentColor;background:none!important}
+main{padding:36px 48px 96px;padding-right:max(48px,env(safe-area-inset-right,0px));max-width:980px;min-width:0}
+
+h1{font-size:34px;line-height:1.15;font-weight:700;letter-spacing:-.01em;margin:0 0 10px;text-wrap:balance}
+h2{font-size:24px;line-height:1.2;font-weight:700;margin:64px 0 8px;padding-top:24px;border-top:2px solid var(--ink);text-wrap:balance}
+h3{font-size:17px;font-weight:600;margin:0 0 8px}
+p{margin:0 0 12px;max-width:74ch}
+.lead{font-size:18px;color:var(--ink-2);max-width:70ch}
+.meta{color:var(--ink-3);font-size:13px;margin-bottom:22px}
+section{scroll-margin-top:12px}
+
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;vertical-align:middle}
+.tag.info{background:var(--accent-soft);color:var(--accent)}
+.tag.warn{background:var(--amber-soft);color:var(--amber)}
+.tag.ok{background:var(--green-soft);color:var(--green)}
+.tag.crit{background:var(--red-soft);color:var(--red)}
+
+.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 22px}
+.kpi div{border:1px solid var(--rule);border-radius:6px;padding:12px 14px;background:var(--panel)}
+.kpi b{display:block;font-size:22px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12.5px;color:var(--ink-3)}
+@media (max-width:640px){.kpi{grid-template-columns:1fr 1fr}}
+
+/* scenario picker = pathmap pattern */
+.pathmap{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 18px}
+.pathmap button{appearance:none;text-align:left;font:inherit;color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:10px 12px;font-size:13px;background:var(--panel);cursor:pointer;display:grid;gap:4px;align-content:start}
+.pathmap button b{font-size:13.5px;line-height:1.3}
+.pathmap button:hover{border-color:var(--ink-3)}
+.pathmap button[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.pathmap button[aria-selected="true"].fail{border-color:var(--red);background:var(--red-soft)}
+.pathmap button[aria-selected="true"].prot{border-color:var(--green);background:var(--green-soft)}
+@media (max-width:760px){.pathmap{grid-template-columns:1fr 1fr}}
+
+.fig{margin:0 0 16px;border:1px solid var(--rule);border-radius:8px;background:var(--panel);overflow:hidden}
+.fig .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;border-bottom:1px solid var(--rule-2);background:var(--rule-2)}
+.fig .bar button{font:600 12px var(--sans);color:var(--ink-2);background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:3px 10px;cursor:pointer}
+.fig .bar button[disabled]{opacity:.45;cursor:default}
+.fig .bar button[aria-current="step"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.fig .bar .dots{display:flex;gap:4px}
+.fig .bar .dots button{min-width:28px;padding:3px 0;font-family:var(--mono)}
+.fig .bar span{font-size:12px;color:var(--ink-3);margin-left:auto}
+.fig .scroll{overflow-x:auto}
+.fig svg{display:block;width:100%;min-width:700px;height:auto}
+.fig .cap{font-size:12.5px;color:var(--ink-3);padding:8px 12px;border-top:1px solid var(--rule-2)}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:12px 16px;border-radius:0 6px 6px 0;font-size:14.5px;min-width:0}
+.callout.warn{border-color:var(--amber);background:var(--amber-soft)}
+.callout.crit{border-color:var(--red);background:var(--red-soft)}
+.callout.ok{border-color:var(--green);background:var(--green-soft)}
+.callout .head{display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:12.5px;color:var(--ink-3)}
+.callout .ttl{font-size:17px;font-weight:600;margin:0 0 8px;line-height:1.3}
+.callout p{margin:0 0 8px}.callout p:last-child{margin:0}
+.callout ul{margin:0;padding-left:18px}.callout li{margin:4px 0}
+
+.codebox{position:relative;min-width:0}
+.codebox .lbl{font-size:12.5px;color:var(--ink-3);margin:0 0 6px;font-weight:600}
+pre{background:var(--code-bg);color:var(--code-ink);padding:14px 16px;border-radius:8px;font-size:12.8px;line-height:1.5;overflow-x:auto;margin:0;white-space:pre}
+pre .c{color:var(--code-c)} pre .h{color:var(--code-k)} pre .s{color:var(--code-s)}
+.codebox button{position:absolute;top:30px;right:8px;font:600 11.5px var(--sans);color:var(--code-ink);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:4px;padding:3px 8px;cursor:pointer}
+
+/* reference blocks */
+.ref{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:16px;margin-top:14px}
+.card{border:1px solid var(--rule);border-radius:8px;padding:14px 18px;background:var(--panel);min-width:0;display:grid;gap:10px;align-content:start}
+.card ul{margin:0;padding-left:18px;font-size:14.5px}.card li{margin:5px 0}
+.card pre{font-size:12.3px}
+ol.timeline{list-style:none;margin:14px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));border-top:1px solid var(--rule)}
+ol.timeline li{display:grid;gap:3px;align-content:start;padding:12px 16px 12px 0;border-bottom:1px solid var(--rule-2);font-size:14px}
+ol.timeline .rel{font:600 13px var(--mono);color:var(--accent);font-variant-numeric:tabular-nums}
+ol.timeline li>span:last-child{color:var(--ink-2)}
+.tbl{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:440px}
+th,td{text-align:left;vertical-align:top;padding:9px 10px 9px 0;border-bottom:1px solid var(--rule-2)}
+th{font-weight:600;color:var(--ink-2);border-bottom:1px solid var(--rule);font-size:13px}
+td:first-child{font-weight:600;white-space:nowrap}
+td.np{color:var(--ink-3);font-style:italic}
+.card.wide{grid-column:1/-1}
+.card h4{font-size:14.5px;font-weight:600;margin:12px 0 4px;color:var(--ink-2)}
+.card .grid2 p{font-size:14.5px}
+dl.gloss{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:5px 14px;font-size:14px}
+dl.gloss dt{font-family:var(--mono);font-weight:500;font-size:13px}
+dl.gloss dd{margin:0;color:var(--ink-2)}
+.src{font-size:13.5px;color:var(--ink-3);display:grid;gap:4px}
+.eyebrow{font-size:12px;color:var(--ink-3);font-weight:600}
+.foot{margin-top:60px;padding-top:16px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--ink-3)}
+
+.toggle{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));font:600 12px var(--sans);background:var(--panel);color:var(--ink-2);border:1px solid var(--rule);border-radius:999px;padding:7px 12px;cursor:pointer;z-index:5}
+
+@media (max-width:960px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  nav.side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--rule);padding:14px max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px))}
+  nav.side ol{display:flex;flex-wrap:wrap;gap:4px}
+  nav.side li.group,nav.side .legend{display:none}
+  main{padding:24px max(16px,env(safe-area-inset-right,0px)) 80px max(16px,env(safe-area-inset-left,0px))}
+  h1{font-size:28px}
+}
+
+/* SVG */
+svg text{font-family:var(--sans)} svg text.m{font-family:var(--mono)}
+.lnk{fill:none;stroke-linecap:round;transition:stroke .3s,opacity .3s}
+.lnk.core{stroke:var(--ink-3);stroke-width:3.5}
+.lnk.acc{stroke:var(--green);stroke-width:3.5}
+.lnk.acc.lacp{stroke:var(--ink-3)}
+.lnk.svl{stroke:var(--accent);stroke-width:4}
+.lnk.dad{stroke:var(--amber);stroke-width:3;stroke-dasharray:2 7}
+.lnk.down{stroke:var(--red)!important;stroke-dasharray:7 7!important;opacity:.85}
+.lnk.err{stroke:var(--amber)!important;stroke-dasharray:3 6!important;opacity:.9}
+.lnk.dim{opacity:.22}
+.lnk.hot{stroke-width:5.5}
+.xm path{stroke:var(--red);stroke-width:3.5;stroke-linecap:round}
+.ltxt{font:500 12.5px var(--mono);fill:var(--ink-3)}
+.ltxt.strong{fill:var(--ink)}
+.nbox{fill:var(--panel);stroke-width:2;transition:stroke .3s}
+.nband{transition:fill .3s}
+.nrole{font:600 12px var(--mono);letter-spacing:.06em;fill:var(--panel)}
+.nname{font:700 16px var(--sans);fill:var(--ink)}
+.nsub{font:400 12.5px var(--sans);fill:var(--ink-3)}
+.layer{font:600 11px var(--sans);letter-spacing:.12em;fill:var(--ink-3)}
+.callout-svg rect{stroke-width:1.5}
+.callout-svg text{font:600 13px var(--sans)}
+.pkt circle{stroke:var(--panel);stroke-width:2}
+.pkt text{font:500 11.5px var(--mono);paint-order:stroke;stroke:var(--panel);stroke-width:4px;stroke-linejoin:round}
+</style>
+</head>
+<body>
+
+<div class="layout">
+<nav class="side" aria-label="Sections">
+  <p class="brand">Catalyst 9500 / 9550 StackWise Virtual</p>
+  <p class="sub">Field lab · IOS XE 17.15 (with 26.x deltas)</p>
+  <ol id="toc">
+    <li class="group">Scenarios</li>
+        <li><a href="#lab" data-sc="normal">Normal operation</a></li>
+    <li><a href="#lab" data-sc="activefail">Active switch fails</a></li>
+    <li><a href="#lab" data-sc="nodad">SVL split, no DAD</a></li>
+    <li><a href="#lab" data-sc="fasthello">Fast Hello DAD</a></li>
+    <li><a href="#lab" data-sc="epagp">ePAgP DAD</a></li>
+    <li><a href="#lab" data-sc="both">Fast Hello + ePAgP</a></li>
+    <li><a href="#lab" data-sc="worst">SVL and DAD link cut</a></li>
+    <li class="group">Reference</li>
+    <li><a href="#history">Release history</a></li>
+    <li><a href="#limits">Limits and caveats</a></li>
+    <li><a href="#config">Configuration reference</a></li>
+  </ol>
+  <div class="legend">
+    <div><span class="sw line" style="background:var(--accent)"></span>SVL and control traffic</div>
+    <div><span class="sw dash" style="color:var(--amber)"></span>Fast Hello DAD link</div>
+    <div><span class="sw line" style="background:var(--green)"></span>PAgP MEC, ePAgP TLVs</div>
+    <div><span class="sw line" style="background:var(--ink-3)"></span>LACP MEC, data packets</div>
+    <div><span class="sw dash" style="color:var(--amber)"></span>Err-disabled by recovery</div>
+    <div><span class="sw dash" style="color:var(--red)"></span>Failed or cut</div>
+  </div>
+</nav>
+
+<main>
+<section id="lab">
+  <h1>Cisco Catalyst 9500 StackWise Virtual</h1>
+  <p class="lead">A step-through lab for a distribution-layer StackWise Virtual pair: what happens when a member fails, when the StackWise Virtual Link (SVL) splits, and how each dual-active detection (DAD) method, Fast Hello and enhanced PAgP (ePAgP), removes the old active switch from the network.</p>
+  <p class="meta">Sources: Catalyst 9500 High Availability Configuration Guide, IOS XE 17.15 and 26.x; Catalyst 9000 StackWise Virtual white paper; TAC tech note 216537; C9550 data sheet. Acronyms are spelled out on first use.</p>
+
+  <div class="kpi">
+    <div><b>8</b><span>SVL members, all the same speed</span></div>
+    <div><b>4</b><span>Fast Hello DAD links maximum</span></div>
+    <div><b>~50 ms</b><span>SSO (Stateful Switchover) takeover</span></div>
+    <div><b>126</b><span>Usable MECs (Po127/128 reserved)</span></div>
+    <div><b>4094</b><span>VLAN reserved for SVL control</span></div>
+    <div><b>64 B</b><span>StackWise Virtual Header per frame</span></div>
+  </div>
+
+  <div class="pathmap" id="rail" role="tablist" aria-label="Scenarios"></div>
+
+  <div class="fig">
+    <div class="bar">
+      <button id="prev" type="button">← Back</button>
+      <button id="next" type="button">Next →</button>
+      <button id="play" type="button" aria-pressed="false">Play</button>
+      <div class="dots" id="dots"></div>
+      <span id="scMeta"></span>
+    </div>
+    <div class="scroll">
+      <svg id="topo" viewBox="0 0 960 560" role="img" aria-labelledby="topoTitle">
+        <title id="topoTitle">Topology: core above a StackWise Virtual distribution pair, access switch below</title>
+        <text class="layer" x="24" y="76">CORE</text>
+        <text class="layer" x="24" y="274">DISTRIBUTION</text>
+        <text class="layer" x="24" y="474">ACCESS</text>
+        <rect id="domain" x="112" y="200" width="736" height="140" rx="12" fill="none" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="4 6" opacity=".6"/>
+        <text id="domainTxt" class="ltxt" x="836" y="216" text-anchor="end">SV domain 10 · one logical switch</text>
+        <g id="links">
+          <path id="p-core1" class="lnk core" d="M230 222 L440 98"/>
+          <path id="p-core2" class="lnk core" d="M730 222 L520 98"/>
+          <path id="p-svlA" class="lnk svl" d="M330 248 L630 248"/>
+          <path id="p-svlB" class="lnk svl" d="M330 266 L630 266"/>
+          <path id="p-dad" class="lnk dad" d="M330 300 L630 300"/>
+          <path id="p-acc1" class="lnk acc" d="M230 318 L440 442"/>
+          <path id="p-acc2" class="lnk acc" d="M730 318 L520 442"/>
+        </g>
+        <g>
+          <text class="ltxt" x="318" y="156" text-anchor="end">Po10 MEC · LACP</text>
+          <text class="ltxt" x="642" y="156">Po10 MEC · LACP</text>
+          <text class="ltxt strong" id="svlTxt" x="480" y="238" text-anchor="middle">SVL · 2 × 40G</text>
+          <text class="ltxt" id="dadTxt" x="480" y="320" text-anchor="middle">DAD · Fast Hello</text>
+          <text class="ltxt" id="acc1Txt" x="318" y="402" text-anchor="end">Po20 MEC · PAgP</text>
+          <text class="ltxt" id="acc2Txt" x="642" y="402">Po20 MEC · PAgP</text>
+        </g>
+        <g id="xmarks"></g>
+        <g id="nodes"></g>
+        <g id="callouts"></g>
+        <g id="flows"></g>
+        <path d="M480 498 L480 520" stroke="var(--ink-3)" stroke-width="1.5" stroke-dasharray="2 4"/>
+        <text class="ltxt" x="480" y="538" text-anchor="middle">Users · APs · endpoints</text>
+      </svg>
+    </div>
+    <div class="cap" id="figCap">Figure.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="callout" id="narrBox">
+      <div class="head"><span class="tag info" id="tone">Normal</span><span id="stepNo"></span></div>
+      <p class="ttl" id="stepTitle"></p>
+      <div id="narr"></div>
+    </div>
+    <div class="codebox">
+      <p class="lbl" id="cliTitle">CLI</p>
+      <pre id="cli"></pre>
+      <button id="copy" type="button">Copy</button>
+    </div>
+  </div>
+</section>
+
+  <section id="history">
+    <h2>Release history on Catalyst 9500</h2>
+    <p class="meta">From the feature history tables in the 17.15 and 26.x guides.</p>
+    <ol class="timeline">
+      <li><span class="rel">16.6.1</span><b>StackWise Virtual introduced</b><span>C9500-12Q, -16X, -24Q, -40X.</span></li>
+      <li><span class="rel">16.10.1</span><b>High Performance models</b><span>C9500-32C, -32QC, -48Y4C, -24Y4C. Use 16.10 or later on C9500H; the SVL option was removed from 16.9.6 (CSCvt46115).</span></li>
+      <li><span class="rel">16.11.1</span><b>Recovery reload control</b><span>Recovery-mode switch reloads itself once the SVL returns; <code>dual-active recovery-reload-disable</code> turns that off.</span></li>
+      <li><span class="rel">16.12.1</span><b>Secure StackWise Virtual</b><span>Encrypts SVL control traffic, FIPS 140-2 compliant, 128-bit key. Not applied to DAD links.</span></li>
+      <li><span class="rel">n/a</span><b>BGP EVPN VXLAN on SVL</b><span>Listed in the feature history without a release number.</span></li>
+      <li><span class="rel">17.2.1</span><b>BUM traffic optimization</b><span><code>svl l2bum optimization</code>, on by default. Keeps flooded traffic off the SVL for VLANs built only from MECs.</span></li>
+      <li><span class="rel">17.10.1</span><b>C9500X-28C8D</b><span>New architecture: LACP replaces LMP, IS-IS replaces SDP, SVL and DAD links added or removed without a reload.</span></li>
+      <li><span class="rel">26.2.1</span><b>C9550 Smart Switches</b><span>Five Silicon One models (E104, E100, K100) with StackWise Virtual front-side stacking on all ports, SSO and ISSU listed as available.</span></li>
+      <li><span class="rel">26.2.1</span><b>Recovery-mode prompt change</b><span>On C9500H and C9500X the hostname reverts to <code>Switch#</code> in recovery mode instead of adding <code>(recovery-mode)</code>. Confirm with <code>show stackwise-virtual dual-active-detection</code>.</span></li>
+    </ol>
+  </section>
+
+  <section id="limits">
+    <h2>Limits and caveats</h2>
+    <p>Platform restrictions and operational gotchas from the configuration guides and the TAC troubleshooting note. Check these before you cable anything.</p>
+    <div class="ref">
+    <div class="card wide">
+      <h3>Limits and restrictions</h3>
+      <div class="tbl">
+      <table>
+        <thead><tr><th>Item</th><th>C9500 / C9500H</th><th>C9500X</th><th>C9550 <span class="tag info">New</span></th></tr></thead>
+        <tbody>
+          <tr><td>SVL members</td><td>Up to 8, all the same speed</td><td>Up to 8</td><td class="np">Not yet published</td></tr>
+          <tr><td>SVL speeds</td><td>10/40G (C9500); 10/25/40/100G (C9500H)</td><td>50/100/400G</td><td>Front-side, on all ports</td></tr>
+          <tr><td>Fast Hello DAD</td><td>Up to 4 direct links, never an SVL port</td><td>Up to 4</td><td class="np">Not yet published</td></tr>
+          <tr><td>ePAgP DAD</td><td>Trusted PAgP MECs; no count stated</td><td>No count stated</td><td class="np">Not yet published</td></tr>
+          <tr><td>Adding SVL or DAD</td><td>Write memory and reload the pair</td><td>Live, no reload</td><td class="np">Not yet published</td></tr>
+          <tr><td>Link health / roles</td><td>LMP / SDP</td><td>LACP / IS-IS</td><td class="np">Not yet published</td></tr>
+          <tr><td>MECs</td><td>126 (Po127, Po128 reserved)</td><td>240 (Po241 reserved)</td><td class="np">Not yet published</td></tr>
+          <tr><td>Control VLAN</td><td>4094 reserved network-wide</td><td>Not applicable</td><td class="np">Not yet published</td></tr>
+          <tr><td>1G for SVL</td><td colspan="2">Not supported</td><td class="np">Not yet published</td></tr>
+          <tr><td>Breakout ports</td><td colspan="2">Data only; never SVL or DAD (4×10G breakout and QSA included on C9500)</td><td class="np">Not yet published</td></tr>
+          <tr><td>C9500-32C</td><td>SVL and DAD on ports 1–16 only</td><td>–</td><td>–</td></tr>
+          <tr><td>C9500-32QC</td><td>Native 40G/100G ports only, not converted ports</td><td>–</td><td>–</td></tr>
+          <tr><td>C9500-NM-2Q</td><td>Cannot mix its 40G ports with fixed downlinks in one SVL</td><td>–</td><td>–</td></tr>
+          <tr><td>Optics</td><td colspan="2">Cisco transceivers only. SFP-10G-T-X cannot be SVL or DAD. Dual-rate optics lock to their highest speed.</td><td class="np">Not yet published</td></tr>
+          <tr><td>Software</td><td>16.6.1 (C9500), 16.10.1 (C9500H)</td><td>17.10.1 (28C8D)</td><td>IOS XE 26.2.1 minimum</td></tr>
+          <tr><td>Pairing</td><td colspan="2">Same model, license (Network Advantage), software version and SDM template; directly connected</td><td class="np">Not yet published</td></tr>
+          <tr><td>Secure SVL</td><td colspan="2">Two-node front-side only; mutually exclusive with FIPS mode; not on DAD links</td><td class="np">Not yet published</td></tr>
+          <tr><td>LACP MEC</td><td colspan="2">Maximum 8 member ports</td><td class="np">Not yet published</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="meta" style="margin:0">C9550 values come from the public C9550 data sheet. Cisco has not yet published a C9550 StackWise Virtual configuration guide, so the blank cells stay unknown until it does.</p>
+    </div>
+    <div class="card">
+      <h3>Caveats that catch people</h3>
+      <ul>
+        <li><b>Config lives in ROMMON.</b> <code>stackwise-virtual link</code> and <code>stackwise-virtual dual-active-detection</code> are stored in ROMMON variables and the running config, not the startup config. The DAD command does not even appear in <code>show running-config</code> after it is applied.</li>
+        <li><b>Recovery-reload-disable is not persistent.</b> <code>dual-active recovery-reload-disable</code> is saved only to the running config, so plan for it to be gone after a reload.</li>
+        <li><b>Normal shut/no shut is blocked</b> on SVL and DAD ports. Cisco's troubleshooting note uses <code>test platform software nif_mgr port disable</code> for lab tests only.</li>
+        <li><b>Early recovery mode.</b> A switch can enter recovery mode with some SVL members still cabled if links flap or LMP/SDP exchanges fail. Partially seated transceivers are a known cause.</li>
+        <li><b>Management port conflict.</b> The guide says management interfaces stay up in recovery mode; the white paper log shows Gi0/0 going down. Keep console access to both members.</li>
+        <li><b>ePAgP has hard dependencies.</b> PAgP <code>desirable</code> MEC, a member on each switch, an ePAgP-capable Cisco neighbor and <code>stack-mac persistent timer 0</code>. LACP or mode <code>on</code> gives no detection.</li>
+        <li><b>SPAN</b> cannot use SVL or Fast Hello DAD ports as source or destination.</li>
+        <li><b>Private VLANs:</b> set the native VLAN on isolated trunk ports explicitly.</li>
+        <li><b>Custom SVI MACs:</b> if one SVI or routed port uses <code>mac-address</code> and needs Layer 3 injected packets, all others must share the same first four bytes.</li>
+        <li><b>Multicast:</b> carry it on MECs rather than ECMP so a switchover doesn't change multicast routes.</li>
+        <li><b>CLI or NETCONF replace</b> of SVL settings lands in the CONFD database and only shows in IOSd after write memory and reload.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Troubleshooting commands</h3>
+      <pre id="tshoot"></pre>
+    </div>
+  </div>
+  </section>
+
+  <section id="config">
+    <h2>Configuration reference</h2>
+    <div class="ref">
+    <div class="card">
+      <h3>Design rules from the sources</h3>
+      <ul>
+        <li>Build the SVL from at least two members, spread across ASICs and separate physical paths. A single member failing costs roughly 50–100 ms for flows hashed onto it; only losing the last member splits the pair.</li>
+        <li>Never use the same port for SVL and DAD. On C9500 the SVL and DAD configuration needs a reload to take effect (C9500X adds and removes links live).</li>
+        <li>Run both DAD methods where you can. Cisco states Fast Hello and ePAgP can be deployed together for higher resiliency.</li>
+        <li>ePAgP needs a PAgP MEC (<code>mode desirable</code>) with at least one member on each switch, terminating on a Cisco switch that supports ePAgP. An LACP MEC gives no dual-active detection.</li>
+        <li>Set <code>stack-mac persistent timer 0</code> so the stack MAC never changes on switchover; Cisco requires it for ePAgP to work without PAgP flaps.</li>
+        <li>Dual-home everything with MEC. Single-homed ports force traffic across the SVL and lose service entirely if their switch goes into recovery.</li>
+        <li>Keep console or out-of-band access to both members. The switch in recovery mode shuts its front-panel ports, and the white paper's sample log also shows its management port Gi0/0 going down.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Reference configuration</h3>
+      <pre id="fullcfg"></pre>
+    </div>
+    <div class="card">
+      <h3>Abbreviations</h3>
+      <dl class="gloss">
+        <dt>SVL</dt><dd>StackWise Virtual Link, the inter-chassis EtherChannel carrying control and data</dd>
+        <dt>DAD</dt><dd>Dual-Active Detection, finds a split where both switches think they are active</dd>
+        <dt>SSO</dt><dd>Stateful Switchover, the hot-standby takeover model</dd>
+        <dt>NSF</dt><dd>Nonstop Forwarding, keeps hardware forwarding during switchover</dd>
+        <dt>MEC</dt><dd>Multichassis EtherChannel, one port-channel with members on both switches</dd>
+        <dt>LACP</dt><dd>Link Aggregation Control Protocol (IEEE 802.3ad)</dd>
+        <dt>PAgP</dt><dd>Port Aggregation Protocol, Cisco's EtherChannel negotiation protocol</dd>
+        <dt>ePAgP</dt><dd>Enhanced PAgP, adds a TLV carrying the active switch ID</dd>
+        <dt>TLV</dt><dd>Type-Length-Value field inside a protocol message</dd>
+        <dt>LMP</dt><dd>Link Management Protocol, per-member SVL health and integrity</dd>
+        <dt>SDP</dt><dd>StackWise Discovery Protocol, resolves active and standby roles</dd>
+        <dt>SVH</dt><dd>StackWise Virtual Header, the 64-byte header on every SVL frame</dd>
+        <dt>GOLD</dt><dd>Generic Online Diagnostics, hardware fault detection</dd>
+        <dt>BUM</dt><dd>Broadcast, Unknown unicast and Multicast traffic</dd>
+        <dt>ROMMON</dt><dd>ROM Monitor, the boot environment that stores SVL and DAD settings</dd>
+        <dt>FIPS</dt><dd>Federal Information Processing Standards (140-2 crypto validation)</dd>
+        <dt>SPAN</dt><dd>Switched Port Analyzer, port mirroring</dd>
+        <dt>ECMP</dt><dd>Equal-Cost Multipath routing</dd>
+        <dt>ISSU</dt><dd>In-Service Software Upgrade</dd>
+        <dt>SDM</dt><dd>Switch Database Management template, the hardware table profile</dd>
+      </dl>
+      <div class="src">
+        <span class="eyebrow">Sources</span>
+        <a href="https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9500/software/release/17-15/configuration_guide/ha/b_1715_ha_9500_cg/configuring_cisco_stackwise_virtual.html" target="_blank" rel="noopener">Configuring Cisco StackWise Virtual, C9500 HA guide, IOS XE 17.15</a>
+        <a href="https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9500/software/release/26-x/configuration_guide/ha/b_26x_ha_9500_cg/configuring_cisco_stackwise_virtual.html" target="_blank" rel="noopener">Configure Cisco StackWise Virtual, C9500 HA guide, IOS XE 26.x</a>
+        <a href="https://www.cisco.com/c/en/us/products/collateral/switches/catalyst-9000/nb-06-cat-9k-stack-wp-cte-en.html" target="_blank" rel="noopener">Cisco Catalyst 9000 StackWise Virtual white paper</a>
+        <a href="https://www.cisco.com/site/us/en/products/collateral/networking/switches/c9550-series-smart-switches/index.html" target="_blank" rel="noopener">Cisco C9550 Series Smart Switches data sheet</a>
+        <a href="https://www.cisco.com/c/en/us/support/docs/switches/catalyst-9500-series-switches/216537-troubleshoot-svl-on-catalyst-9000-switch.html" target="_blank" rel="noopener">Troubleshoot SVL on Catalyst 9000 Switches (TAC tech note 216537)</a>
+      </div>
+    </div>
+  </div>
+  </section>
+
+
+<p class="foot">Built from the Cisco Catalyst 9500 High Availability Configuration Guides (IOS XE 17.15 and 26.x), the Catalyst 9000 StackWise Virtual white paper and TAC tech note 216537. Behavior can differ by release and platform; verify against the guide and Bug Search Tool for your exact software before production use.</p>
+</main>
+</div>
+<button class="toggle" id="themeBtn" type="button" aria-label="Toggle light or dark theme">Theme</button>
+
+<script>
+(function(){
+const NS="http://www.w3.org/2000/svg";
+const $=id=>document.getElementById(id);
+const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* theme toggle */
+(function(){var root=document.documentElement,btn=$("themeBtn");
+  try{var t=localStorage.getItem("svl-lab-theme");if(t)root.setAttribute("data-theme",t);}catch(e){}
+  btn.addEventListener("click",function(){
+    var cur=root.getAttribute("data-theme");
+    var dark=cur?cur==="dark":(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
+    var next=dark?"light":"dark";root.setAttribute("data-theme",next);
+    try{localStorage.setItem("svl-lab-theme",next);}catch(e){}
+  });})();
+
+const ROLE={
+  active:{c:"var(--accent)",role:"SV ACTIVE",sub:"Control plane + forwarding"},
+  newactive:{c:"var(--accent)",role:"SV ACTIVE",sub:"Former standby, took over"},
+  standby:{c:"var(--ink-3)",role:"STANDBY HOT",sub:"SSO synced · forwarding"},
+  promoting:{c:"var(--amber)",role:"STANDBY → ACTIVE",sub:"SVL lost · starting SSO"},
+  dual:{c:"var(--red)",role:"ACTIVE · DUAL",sub:"Same config live twice"},
+  recovery:{c:"var(--amber)",role:"RECOVERY MODE",sub:"Front-panel ports err-disabled"},
+  down:{c:"var(--ink-3)",role:"OFFLINE",sub:"Power or hardware failure"},
+  reload:{c:"var(--ink-3)",role:"RELOADING",sub:"Auto recovery reload"}
+};
+const FLOW={ctrl:"var(--accent)",hello:"var(--amber)",recover:"var(--red)",tlv:"var(--green)",tlvnew:"var(--green)",data:"var(--ink-2)",dup:"var(--red)",bpdu:"var(--accent)"};
+const L=(o)=>Object.assign({svl:"up",dad:"up",core1:"up",core2:"up",acc1:"up",acc2:"up"},o||{});
+const NORMAL={d1:"active",d2:"standby"};
+
+/* ---------- CLI snippets ---------- */
+const CLI={
+ redund:`<span class="c">SV#</span> <span class="h">show redundancy</span> | include state|Mode
+Configured Redundancy Mode = sso
+Operating Redundancy Mode  = sso
+Current Software state     = ACTIVE
+Current Software state     = STANDBY HOT
+
+<span class="c">SV#</span> <span class="h">show stackwise-virtual link</span>
+Switch  SVL  Ports                  Link-Status  Protocol-Status
+1       1    FortyGigabitEthernet1/0/23   U          R
+1       1    FortyGigabitEthernet1/0/24   U          R
+2       1    FortyGigabitEthernet2/0/23   U          R
+2       1    FortyGigabitEthernet2/0/24   U          R
+<span class="c">! U = up · R = ready (LMP healthy on every member)</span>`,
+ svlTraffic:`<span class="c">! SVL members carry the 64-byte SVH on every frame.</span>
+<span class="c">! Control frames ride VLAN 4094 in the priority queue;</span>
+<span class="c">! user DSCP is trusted end to end and cannot be changed.</span>
+
+<span class="c">SV#</span> <span class="h">show stackwise-virtual bandwidth</span>
+<span class="c">SV#</span> <span class="h">show stackwise-virtual neighbors</span>
+<span class="c">SV#</span> <span class="h">show switch</span>
+Switch/Stack Mac Address : 00a3.d145.0100 - Local Mac Address
+Mac persistency wait time: Indefinite`,
+ local:`<span class="c">! MEC index is populated with local members only, so</span>
+<span class="c">! each switch forwards out its own links. The SVL is used for:</span>
+<span class="c">!  - flooding toward single-homed ports</span>
+<span class="c">!  - software-switched packets that entered on the standby</span>
+<span class="c">!  - destinations reachable only on the peer</span>
+<span class="c">SV(config)#</span> <span class="h">svl l2bum optimization</span>   <span class="c">! default on</span>
+<span class="c">SV#</span> <span class="h">show platform software fed switch active fss bum-opt summary</span>`,
+ switchover:`*Mar 2 07:28:40: %REDUNDANCY-3-SWITCHOVER: RP switchover (PEER_DOWN)
+*Mar 2 07:28:42: %LINK-3-UPDOWN: Interface Vlan31, changed state to up
+<span class="c">! Switch 2 now ACTIVE. Router MAC and STP bridge ID are</span>
+<span class="c">! preserved (stack-mac persistent, indefinite by default).</span>
+<span class="c">SV#</span> <span class="h">show redundancy</span> | include switchover
+Switchovers system experienced = 1
+Last switchover reason = active unit removed`,
+ rejoinNoPreempt:`<span class="c">! No preemption: Switch 1 rejoins as STANDBY HOT even if</span>
+<span class="c">! its priority is higher. Move the role deliberately:</span>
+<span class="c">SV#</span> <span class="h">redundancy force-switchover</span>
+
+<span class="c">! Role preference (privileged EXEC, takes effect on reload):</span>
+<span class="c">SV#</span> <span class="h">switch 1 priority 15</span>
+<span class="c">SV#</span> <span class="h">switch 2 priority 14</span>`,
+ svlSplit:`%NIF_MGR-6-PORT_LINK_DOWN: Switch 1 R0/0: nif_mgr: Port 0, LPN 1 on front side stack link 0 is DOWN.
+%NIF_MGR-6-STACK_LINK_DOWN: Switch 1 R0/0: nif_mgr: Front side stack link 0 is DOWN.
+%STACKMGR-1-STACK_LINK_CHANGE: Switch 1 R0/0: stack_mgr: Stack port 1 on Switch 1 is down
+%HMANRP-5-CHASSIS_DOWN_EVENT: Chassis 2 gone DOWN!
+%REDUNDANCY-3-STANDBY_LOST: Standby processor fault (PEER_NOT_PRESENT)`,
+ dualNoDad:`<span class="c">! Both chassis now answer as the same device:</span>
+<span class="c">!  interface Vlan31  ip address 10.31.0.1  ← live on SW1 AND SW2</span>
+<span class="c">!  interface Loopback0  ip address 10.0.0.11 ← duplicate router ID</span>
+<span class="c">!  spanning-tree bridge ID                   ← identical</span>
+<span class="c">!  LACP/PAgP system ID                       ← identical</span>
+<span class="c">!  SSH host keys                             ← identical</span>
+
+<span class="c">SV#</span> <span class="h">show stackwise-virtual dual-active-detection</span>
+<span class="c">! No DAD port configured, PAgP trust not set: nothing to detect the split</span>`,
+ fhCfg:`<span class="c">! On BOTH switches, on a port that is NOT an SVL member:</span>
+<span class="c">SV(config)#</span> <span class="h">interface FortyGigabitEthernet1/0/12</span>
+<span class="c">SV(config-if)#</span> <span class="h">stackwise-virtual dual-active-detection</span>
+<span class="c">SV#</span> <span class="h">write memory</span>   <span class="c">! saved to ROMMON variables</span>
+<span class="c">SV#</span> <span class="h">reload</span>
+<span class="c">! The command is hidden from show running-config afterwards</span>
+<span class="c">! but keeps working. Verify with:</span>
+
+<span class="c">SV#</span> <span class="h">show stackwise-virtual dual-active-detection</span>
+Recovery Reload for switch 1: Enabled
+Recovery Reload for switch 2: Enabled
+Switch   Dad port                       Status
+1        FortyGigabitEthernet1/0/12     up
+2        FortyGigabitEthernet2/0/12     up`,
+ fhRecover:`<span class="c">! Switch 2 console (old standby, now active)</span>
+%REDUNDANCY-3-SWITCHOVER: RP switchover (PEER_NOT_PRESENT)
+%REDUNDANCY-3-SWITCHOVER: RP switchover (PEER_DOWN)
+<span class="c">! It sends a recovery request to Switch 1 over the DAD link</span>`,
+ fhRecMode:`<span class="c">! Switch 1 console (old active)</span>
+Stackwise virtual: Fast Hello running and triggered dual-active recovery,
+  setting hostname to 9500-SV(recovery-mode)
+%NIF_MGR-6-DAD_RECOVERY_MODE: Switch 1 R0/0: nif_mgr: Dual Active detected:
+  Switch going into recovery mode. since peer requested.
+%PM-4-ERR_DISABLE: dual-active-recovery error detected on Fo1/0/3, putting Fo1/0/3 in err-disable state
+%PM-4-ERR_DISABLE: dual-active-recovery error detected on Fo1/0/4, putting Fo1/0/4 in err-disable state
+%LINK-5-CHANGED: Interface GigabitEthernet0/0, changed state to administratively down
+SV-1(recovery-mode)#`,
+ rejoin:`<span class="c">! After the SVL is repaired, the recovery-mode switch</span>
+<span class="c">! reloads on its own (default since 16.11.1) and comes back STANDBY HOT.</span>
+%STACKMGR-6-SWITCH_ADDED: Switch 2 R0/0: stack_mgr: Switch 1 has been added to the stack.
+%HA_CONFIG_SYNC-6-BULK_CFGSYNC_SUCCEED: Bulk Sync succeeded
+%RF-5-RF_TERMINAL_STATE: Terminal state reached for (SSO)
+
+<span class="c">! To hold it in recovery for manual inspection instead:</span>
+<span class="c">SV(config)#</span> <span class="h">stackwise-virtual</span>
+<span class="c">SV(config-stackwise-virtual)#</span> <span class="h">dual-active recovery-reload-disable</span>
+<span class="c">! Saved to running config only, not startup config</span>`,
+ pagpCfg:`<span class="c">! MEC toward the access switch, members on both chassis</span>
+<span class="c">SV(config)#</span> <span class="h">interface range Fo1/0/17 , Fo2/0/21</span>
+<span class="c">SV(config-if-range)#</span> <span class="h">channel-group 20 mode desirable</span>   <span class="c">! group 1-126</span>
+<span class="c">SV(config)#</span> <span class="h">interface port-channel 20</span>
+<span class="c">SV(config-if)#</span> <span class="h">shutdown</span>
+<span class="c">SV(config)#</span> <span class="h">stackwise-virtual</span>
+<span class="c">SV(config-stackwise-virtual)#</span> <span class="h">dual-active detection pagp</span>   <span class="c">! default on</span>
+<span class="c">SV(config-stackwise-virtual)#</span> <span class="h">dual-active detection pagp trust channel-group 20</span>
+<span class="c">SV(config)#</span> <span class="h">interface port-channel 20</span>
+<span class="c">SV(config-if)#</span> <span class="h">no shutdown</span>
+<span class="c">SV(config)#</span> <span class="h">stack-mac persistent timer 0</span>`,
+ pagpShow:`<span class="c">SV#</span> <span class="h">show stackwise-virtual dual-active-detection pagp</span>
+Pagp dual-active detection enabled: Yes
+In dual-active recovery mode: No
+Recovery Reload for switch 1: Enabled
+Recovery Reload for switch 2: Enabled
+
+Channel group 20
+          Dual-Active      Partner    Partner   Partner
+Port      Detect Capable   Name       Port      Version
+Fo1/0/17  Yes              ACC-1      Te1/1/1   1.1
+Fo2/0/21  Yes              ACC-1      Te1/1/2   1.1
+<span class="c">! "Detect Capable = Yes" confirms the neighbor speaks ePAgP</span>`,
+ pagpNew:`<span class="c">! Switch 2 detects SVL down, completes SSO, and immediately</span>
+<span class="c">! transmits PAgP on every trusted channel-group with</span>
+<span class="c">!   TLV: active switch ID = 2</span>
+<span class="c">! ACC-1 sees the active ID change from 1 to 2.</span>`,
+ pagpRelay:`<span class="c">! ACC-1 updates its stored active ID to 2 and sends</span>
+<span class="c">! PAgP with active ID = 2 out ALL Po20 members, so the</span>
+<span class="c">! message reaches Switch 1 on Te1/1/1 as well.</span>
+<span class="c">! From now on every scheduled PAgP message carries ID = 2.</span>`,
+ pagpRec:`<span class="c">! Switch 1: active ID in received ePAgP (2) ≠ its own (1)</span>
+<span class="c">! → dual-active detected → recovery mode</span>
+%PM-4-ERR_DISABLE: dual-active-recovery error detected on Fo1/0/17, putting Fo1/0/17 in err-disable state
+%PM-4-ERR_DISABLE: dual-active-recovery error detected on Fo1/0/1, putting Fo1/0/1 in err-disable state
+
+<span class="c">SV-1(recovery-mode)#</span> <span class="h">show stackwise-virtual dual-active-detection pagp</span>
+In dual-active recovery mode: Yes`,
+ both:`<span class="c">! Fast Hello link</span>
+<span class="c">SV(config)#</span> <span class="h">interface Fo1/0/12</span>
+<span class="c">SV(config-if)#</span> <span class="h">stackwise-virtual dual-active-detection</span>
+<span class="c">SV(config)#</span> <span class="h">interface Fo2/0/12</span>
+<span class="c">SV(config-if)#</span> <span class="h">stackwise-virtual dual-active-detection</span>
+<span class="c">! ePAgP on the access MEC</span>
+<span class="c">SV(config)#</span> <span class="h">stackwise-virtual</span>
+<span class="c">SV(config-stackwise-virtual)#</span> <span class="h">dual-active detection pagp trust channel-group 20</span>
+
+<span class="c">SV#</span> <span class="h">show stackwise-virtual dual-active-detection</span>
+<span class="c">SV#</span> <span class="h">show stackwise-virtual dual-active-detection pagp</span>`,
+ bothFire:`<span class="c">! Two independent paths now report the same thing:</span>
+<span class="c">!  DAD link : recovery request from Switch 2</span>
+<span class="c">!  Po20     : ePAgP active ID changed 1 → 2</span>
+<span class="c">! Either one alone puts Switch 1 into recovery mode.</span>`,
+ cut:`%LINEPROTO-5-UPDOWN: Line protocol on Interface FortyGigabitEthernet1/0/23, changed state to down
+%LINEPROTO-5-UPDOWN: Line protocol on Interface FortyGigabitEthernet1/0/24, changed state to down
+%LINEPROTO-5-UPDOWN: Line protocol on Interface FortyGigabitEthernet1/0/12, changed state to down
+<span class="c">! SVL members and the DAD port shared a conduit (or a module).</span>
+<span class="c">! Fast Hello is gone. Only Po20 ePAgP can still see the peer.</span>`
+};
+
+const FULLCFG=`<span class="c">! ---- both switches, before conversion ----</span>
+<span class="h">switch 1 priority 15</span>              <span class="c">! on the preferred active</span>
+<span class="h">configure terminal</span>
+<span class="h">stackwise-virtual</span>
+ <span class="h">domain 10</span>
+<span class="h">interface range Fo1/0/23 - 24</span>
+ <span class="h">stackwise-virtual link 1</span>
+<span class="h">interface Fo1/0/12</span>
+ <span class="h">stackwise-virtual dual-active-detection</span>
+<span class="h">end</span>
+<span class="h">write memory</span>
+<span class="h">reload</span>
+
+<span class="c">! ---- after the pair forms (one logical switch) ----</span>
+<span class="h">stack-mac persistent timer 0</span>
+<span class="h">interface range Fo1/0/1 , Fo2/0/1</span>
+ <span class="h">channel-group 10 mode active</span>      <span class="c">! LACP MEC to core</span>
+<span class="h">interface range Fo1/0/17 , Fo2/0/21</span>
+ <span class="h">channel-group 20 mode desirable</span>   <span class="c">! PAgP MEC to access</span>
+<span class="h">stackwise-virtual</span>
+ <span class="h">dual-active detection pagp trust channel-group 20</span>
+
+<span class="c">! ---- verify ----</span>
+<span class="h">show stackwise-virtual</span>
+<span class="h">show stackwise-virtual link</span>
+<span class="h">show stackwise-virtual dual-active-detection</span>
+<span class="h">show stackwise-virtual dual-active-detection pagp</span>
+<span class="h">show redundancy</span>`;
+
+/* ---------- scenarios ---------- */
+const SC=[
+{ id:"normal", kind:"base", name:"Normal operation", dad:false, epagp:false,
+  meta:"Baseline · no failure",
+  steps:[
+  { t:"One control plane, two forwarding planes", tone:"info", n:NORMAL, l:L({dad:"none"}),
+    f:[["svlA",1,"ctrl","SDP"],["svlA",-1,"ctrl","SSO sync"],["svlB",1,"ctrl","LMP"],["svlB",-1,"ctrl","LMP"],
+       ["acc1",-1,"data","data"],["core1",1,"data",""],["acc2",-1,"data","data"],["core2",1,"data",""]],
+    d:`<p>The <b>SV active</b> switch (Switch 1) runs every Layer 2 and Layer 3 control protocol (STP, LACP, PAgP, routing) and all management. Switch 2 is <b>standby hot</b>: configuration, forwarding and protocol state are synchronized to it over the SVL, so it can take over through SSO.</p>
+       <p>Both switches forward traffic in hardware. The active switch pushes FIB updates to the standby, and neighbors see a single device: one STP bridge, one LACP/PAgP system ID, one router MAC.</p>`,
+    cliT:"Verify roles and SVL", cli:CLI.redund },
+  { t:"What travels on the SVL", tone:"info", n:NORMAL, l:L({dad:"none",core1:"dim",core2:"dim",acc1:"dim"}),
+    f:[["svlB",1,"ctrl","LMP"],["svlB",-1,"ctrl","LMP"],["svlA",1,"ctrl","SDP · config sync"],
+       ["acc2",-1,"bpdu","PAgP"],["svlA",-1,"bpdu","→ active CPU"]],
+    d:`<ul><li><b>LMP</b> runs on each SVL member: it rejects unidirectional links and exchanges periodic hellos to monitor member health.</li>
+       <li><b>SDP</b> checks hardware and software compatibility and resolves which switch is active and which is standby.</li>
+       <li>Control frames received on Switch 2 ports, such as this PAgP frame from the access switch, cross the SVL to the active switch's CPU. Frames the active switch sends out Switch 2 ports cross the other way.</li>
+       <li>Every SVL frame carries a 64-byte SVH. Control traffic uses reserved VLAN 4094 in the priority queue, so VLAN 4094 must not be used anywhere else in the network.</li></ul>`,
+    cliT:"SVL internals", cli:CLI.svlTraffic },
+  { t:"Local forwarding keeps data off the SVL", tone:"ok", n:NORMAL, l:L({dad:"none",svl:"dim"}),
+    f:[["acc1",-1,"data","flow A"],["core1",1,"data","flow A"],["acc2",-1,"data","flow B"],["core2",1,"data","flow B"],
+       ["core1",-1,"data",""],["core2",-1,"data",""]],
+    c:[{p:"mid",tone:"ok",text:"SVL idle for dual-homed traffic"}],
+    d:`<p>A MEC populates its forwarding index with <b>local members only</b>, so a frame entering Switch 1 leaves on a Switch 1 link even if the hash would have picked a Switch 2 port.</p>
+       <p>Data crosses the SVL only for flooding toward single-homed ports, for software-switched packets that entered on the standby, or when one switch has lost its local members of a MEC. Dual-home every neighbor and size the SVL for those failure cases.</p>`,
+    cliT:"Forwarding notes", cli:CLI.local }
+  ]},
+
+{ id:"activefail", kind:"base", name:"Active switch fails", dad:true, epagp:false,
+  meta:"Contrast case · not dual-active",
+  steps:[
+  { t:"Baseline with a Fast Hello DAD link", tone:"info", n:NORMAL, l:L({}),
+    f:[["svlA",1,"ctrl","SSO sync"],["svlB",-1,"ctrl","LMP"],["dad",1,"hello","hello"],["acc1",-1,"data",""],["acc2",-1,"data",""]],
+    d:`<p>This scenario shows why losing a whole switch is <b>not</b> a dual-active event. It is the case SSO was built for, and DAD has nothing to do.</p>`,
+    cliT:"Before the failure", cli:CLI.redund },
+  { t:"Switch 1 loses power", tone:"crit", n:{d1:"down",d2:"promoting"}, l:L({svl:"down",dad:"down",core1:"down",acc1:"down"}),
+    f:[], c:[{p:"mid",tone:"crit",text:"Every path to Switch 1 is dark"}],
+    d:`<p>Switch 2 notices through redundancy heartbeats on the SVL, SDP, a GOLD failure event, or the whole SVL going down.</p>
+       <p>The DAD link and the access MEC member to Switch 1 are also down, because the peer is genuinely gone. No path reports a live peer, so there is no dual-active condition to resolve.</p>`,
+    cliT:"What Switch 2 sees", cli:CLI.svlSplit },
+  { t:"SSO switchover to Switch 2", tone:"ok", n:{d1:"down",d2:"newactive"}, l:L({svl:"down",dad:"down",core1:"down",acc1:"down"}),
+    f:[["acc2",-1,"data","data"],["core2",1,"data","data"],["core2",-1,"data",""],["acc2",1,"data",""]],
+    c:[{p:"top",tone:"ok",text:"SSO ≈ 50 ms · NSF keeps forwarding"}],
+    d:`<p>Switch 2 completes SSO and becomes active. The white paper gives about 50 ms for the switchover; software-switched traffic recovers a little more slowly.</p>
+       <p>Neighbors lose only the MEC members to Switch 1, so port-channels and routing adjacencies stay up (NSF graceful restart). The router MAC and STP bridge ID do not change, because the stack MAC persists by default.</p>`,
+    cliT:"Switchover log", cli:CLI.switchover },
+  { t:"Switch 1 returns as standby", tone:"ok", n:{d1:"standby",d2:"newactive"}, l:L({}),
+    f:[["svlA",-1,"ctrl","bulk sync"],["svlB",1,"ctrl","LMP"],["dad",-1,"hello","hello"]],
+    d:`<p>When Switch 1 boots, it brings up its SVL members first, runs SDP, takes a bulk configuration sync and settles as <b>standby hot</b>.</p>
+       <p>StackWise Virtual does not preempt. Switch 2 keeps the active role until you move it with <code>redundancy force-switchover</code>.</p>`,
+    cliT:"Role control", cli:CLI.rejoinNoPreempt }
+  ]},
+
+{ id:"nodad", kind:"fail", name:"SVL split, no DAD", dad:false, epagp:false,
+  meta:"Failure · no detection configured",
+  steps:[
+  { t:"Pair healthy, no DAD configured", tone:"warn", n:NORMAL, l:L({dad:"none"}),
+    f:[["svlA",1,"ctrl","SSO sync"],["svlB",-1,"ctrl","LMP"],["acc1",-1,"data",""],["acc2",-1,"data",""]],
+    d:`<p>No Fast Hello link and no trusted PAgP channel-group. The access MEC runs LACP, which carries no active-switch ID.</p>
+       <p>Losing one SVL member here is harmless: the SVL EtherChannel rehashes and only flows on that member see an outage of roughly 50–100 ms.</p>`,
+    cliT:"Current state", cli:CLI.redund },
+  { t:"The last SVL member fails", tone:"warn", n:{d1:"active",d2:"promoting"}, l:L({dad:"none",svl:"down"}),
+    f:[], c:[{p:"mid",tone:"crit",text:"Both switches still powered"}],
+    d:`<p>With every SVL member down, Switch 2 cannot tell a dead peer from a severed link. To keep the network up without delay it assumes the active switch failed and starts SSO.</p>
+       <p>Switch 1 sees the standby disappear and keeps running as active.</p>`,
+    cliT:"Switch 1 console", cli:CLI.svlSplit },
+  { t:"Dual-active: two switches, one identity", tone:"crit", n:{d1:"dual",d2:"dual"}, l:L({dad:"none",svl:"down"}),
+    f:[["core1",1,"dup","10.0.0.11"],["core2",1,"dup","10.0.0.11"],["acc1",1,"dup","BID ·0100"],["acc2",1,"dup","BID ·0100"]],
+    c:[{p:"top",tone:"crit",text:"Duplicate IPs · router ID · STP bridge ID"}],
+    d:`<p>Both switches now run the same configuration. SVIs, loopbacks and Layer 3 port-channels exist twice on the network, both share the same SSH keys, and both send BPDUs with the same STP bridge ID. Cisco compares it to two devices loaded with the same configuration file.</p>
+       <p>The LACP system ID is also shared, so neighbors can keep both halves of each MEC in one bundle and hash traffic to a switch that no longer has the state to deliver it. Without a DAD path, neither switch learns that its peer is alive, and both stay active until an operator intervenes.</p>`,
+    cliT:"What is duplicated", cli:CLI.dualNoDad }
+  ]},
+
+{ id:"fasthello", kind:"prot", name:"Fast Hello DAD", dad:true, epagp:false,
+  meta:"Protected · dedicated DAD link",
+  steps:[
+  { t:"A dedicated link watches for a split", tone:"info", n:NORMAL, l:L({}),
+    f:[["svlA",1,"ctrl","SSO sync"],["svlB",-1,"ctrl","LMP"],["dad",1,"hello","hello"],["dad",-1,"hello","hello"]],
+    d:`<ul><li>A direct Ethernet connection between the two switches, separate from the SVL. You can dedicate up to four links, and a port can never be both SVL and DAD.</li>
+       <li>The switches exchange dual-active hello messages with their initial states. If an expected hello does not arrive before its timer expires, the switch marks that link as no longer capable of detection.</li>
+       <li>On C9500 the configuration takes effect after a reload. Secure StackWise Virtual does not cover DAD links.</li></ul>`,
+    cliT:"Configure Fast Hello", cli:CLI.fhCfg },
+  { t:"SVL lost, DAD link still up", tone:"warn", n:{d1:"active",d2:"promoting"}, l:L({svl:"down",dad:"hot"}),
+    f:[["dad",1,"hello","hello"],["dad",-1,"hello","hello"]],
+    c:[{p:"mid",tone:"warn",text:"Peer alive on the DAD link"}],
+    d:`<p>The last SVL member fails. Switch 2 starts SSO, and the SVL failure triggers a fresh hello exchange on the DAD link. Each switch now hears from a peer that is plainly still running, which is the definition of dual-active.</p>`,
+    cliT:"Switch 1 console", cli:CLI.svlSplit },
+  { t:"New active sends a recovery request", tone:"warn", n:{d1:"active",d2:"newactive"}, l:L({svl:"down",dad:"hot"}),
+    f:[["dad",-1,"recover","RECOVER"]],
+    d:`<p>Switch 2, now active, sends a recovery message over the Fast Hello link to the switch that was active before the split.</p>
+       <p>The rule is fixed: the former standby keeps running as active, and the former active is the one removed from the network.</p>`,
+    cliT:"Switch 2 console", cli:CLI.fhRecover },
+  { t:"Old active enters recovery mode", tone:"ok", n:{d1:"recovery",d2:"newactive"}, l:L({svl:"down",core1:"err",acc1:"err"}),
+    f:[["acc2",-1,"data","data"],["core2",1,"data","data"],["core2",-1,"data",""],["acc2",1,"data",""]],
+    c:[{p:"top",tone:"ok",text:"Single active · MECs run on Switch 2"}],
+    d:`<p>Switch 1 err-disables every interface that is not an SVL or DAD port and its hostname gains a <code>(recovery-mode)</code> suffix (from IOS XE 26.2.1 on C9500H and C9500X, the prompt reverts to <code>Switch#</code> instead). It stays that way until the SVL comes back.</p>
+       <p>Neighbors lose the Switch 1 MEC members and keep forwarding through Switch 2. The configuration guide says management interfaces stay up, while the white paper's sample log shows Gi0/0 shut down, so plan console access either way.</p>`,
+    cliT:"Switch 1 console", cli:CLI.fhRecMode },
+  { t:"Repair the SVL: automatic rejoin", tone:"ok", n:{d1:"standby",d2:"newactive"}, l:L({}),
+    f:[["svlA",-1,"ctrl","bulk sync"],["svlB",1,"ctrl","LMP"],["dad",1,"hello","hello"]],
+    d:`<p>Once the SVL members are physically repaired, the switch in recovery mode reloads on its own and returns as <b>standby hot</b> (automatic since IOS XE 16.11.1).</p>
+       <p>To keep it parked in recovery for investigation, configure <code>dual-active recovery-reload-disable</code>. That setting is saved only to the running config, so it does not survive a reload.</p>`,
+    cliT:"Rejoin", cli:CLI.rejoin }
+  ]},
+
+{ id:"epagp", kind:"prot", name:"ePAgP DAD", dad:false, epagp:true,
+  meta:"Protected · via the access MEC",
+  steps:[
+  { t:"The access switch relays the active ID", tone:"info", n:NORMAL, l:L({dad:"none"}),
+    f:[["svlA",1,"ctrl","SSO sync"],["acc1",1,"tlv","ID=1"],["acc2",1,"tlv","ID=1"],["acc1",-1,"tlv","ID=1"],["acc2",-1,"tlv","ID=1"]],
+    d:`<ul><li>The MEC to ACC-1 runs PAgP in <code>desirable</code> mode with at least one member on each switch. ePAgP can use an upstream or a downstream MEC, as long as it ends on a Cisco switch that supports ePAgP.</li>
+       <li>Only switches in StackWise Virtual mode add the TLV carrying the active switch ID. The neighbor tracks that ID and returns it on every member.</li>
+       <li>Trust is configured on the SV pair with <code>dual-active detection pagp trust channel-group 20</code>, and the stack MAC must be persistent (<code>stack-mac persistent timer 0</code>).</li></ul>`,
+    cliT:"Configure ePAgP", cli:CLI.pagpCfg },
+  { t:"SVL lost: Switch 2 announces ID 2", tone:"warn", n:{d1:"active",d2:"newactive"}, l:L({dad:"none",svl:"down",acc2:"hot"}),
+    f:[["acc2",1,"tlvnew","ID=2"]],
+    c:[{p:"mid",tone:"warn",text:"Two actives, ACC-1 hears ID 2"}],
+    d:`<p>Switch 2 detects the SVL failure, completes SSO and immediately sends PAgP on every trusted channel-group with a TLV containing its own ID, 2.</p>
+       <p>ACC-1 receives an active ID that differs from the one it has stored, and treats Switch 2 as the new active.</p>`,
+    cliT:"Sequence", cli:CLI.pagpNew },
+  { t:"ACC-1 sends ID 2 to both switches", tone:"warn", n:{d1:"active",d2:"newactive"}, l:L({dad:"none",svl:"down",acc1:"hot",acc2:"hot"}),
+    f:[["acc1",-1,"tlvnew","ID=2"],["acc2",-1,"tlvnew","ID=2"]],
+    d:`<p>ACC-1 updates its local active ID to 2 and immediately sends PAgP with ID 2 out <b>all</b> members of Po20. That puts the new ID on the member that terminates on Switch 1.</p>
+       <p>From here on, every regularly scheduled PAgP message from ACC-1 carries ID 2.</p>`,
+    cliT:"Sequence", cli:CLI.pagpRelay },
+  { t:"Switch 1 sees the ID change and steps down", tone:"ok", n:{d1:"recovery",d2:"newactive"}, l:L({dad:"none",svl:"down",core1:"err",acc1:"err"}),
+    f:[["acc2",-1,"data","data"],["core2",1,"data","data"],["core2",-1,"data",""],["acc2",1,"data",""]],
+    c:[{p:"top",tone:"ok",text:"Detected with no dedicated DAD cable"}],
+    d:`<p>Switch 1 receives an active ID that is not its own and concludes its peer is alive and active. It enters recovery mode and err-disables its non-SVL interfaces.</p>
+       <p>Detection depends on the PAgP MEC staying up between ACC-1 and both switches. If that MEC used LACP, or ended on a device without ePAgP support, nothing would be detected.</p>`,
+    cliT:"Verify", cli:CLI.pagpRec },
+  { t:"Repair the SVL: automatic rejoin", tone:"ok", n:{d1:"standby",d2:"newactive"}, l:L({dad:"none"}),
+    f:[["svlA",-1,"ctrl","bulk sync"],["acc1",1,"tlv","ID=2"],["acc2",1,"tlv","ID=2"]],
+    d:`<p>Switch 1 reloads automatically when the SVL returns and rejoins as standby. PAgP now carries active ID 2 from both members until the next role change.</p>`,
+    cliT:"ePAgP status", cli:CLI.pagpShow }
+  ]},
+
+{ id:"both", kind:"prot", name:"Fast Hello + ePAgP", dad:true, epagp:true,
+  meta:"Protected · two independent DAD paths",
+  steps:[
+  { t:"Two detection paths, no shared fate", tone:"info", n:NORMAL, l:L({}),
+    f:[["svlA",1,"ctrl","SSO sync"],["dad",1,"hello","hello"],["acc1",1,"tlv","ID=1"],["acc2",-1,"tlv","ID=1"]],
+    d:`<p>The SVL carries the pair. Two separate mechanisms watch for a split: the Fast Hello link between the chassis, and ePAgP through ACC-1. Cisco notes both can run in the same domain for higher resiliency.</p>
+       <p>The SVL is not a DAD path. It is the thing whose loss DAD exists to detect.</p>`,
+    cliT:"Configure both", cli:CLI.both },
+  { t:"SVL fails: both paths fire", tone:"warn", n:{d1:"active",d2:"newactive"}, l:L({svl:"down",dad:"hot",acc2:"hot",acc1:"hot"}),
+    f:[["dad",-1,"recover","RECOVER"],["acc2",1,"tlvnew","ID=2"],["acc1",-1,"tlvnew","ID=2"]],
+    c:[{p:"mid",tone:"warn",text:"Either path is enough"}],
+    d:`<p>Switch 2 becomes active and the split is reported twice: a recovery request over the DAD link, and active ID 2 relayed by ACC-1 onto the Switch 1 member of Po20.</p>`,
+    cliT:"Sequence", cli:CLI.bothFire },
+  { t:"Switch 1 in recovery, network stable", tone:"ok", n:{d1:"recovery",d2:"newactive"}, l:L({svl:"down",core1:"err",acc1:"err"}),
+    f:[["acc2",-1,"data","data"],["core2",1,"data","data"],["core2",-1,"data",""],["acc2",1,"data",""]],
+    d:`<p>The result is the same as with either method alone: the former active removes itself and the former standby carries all traffic. Running both means one failed path, a mis-cabled DAD port or an access switch out for maintenance, does not leave the pair unprotected.</p>`,
+    cliT:"Switch 1 console", cli:CLI.fhRecMode }
+  ]},
+
+{ id:"worst", kind:"fail", name:"SVL and DAD link cut", dad:true, epagp:true,
+  meta:"Failure · shared-fate cabling",
+  steps:[
+  { t:"All paths healthy", tone:"info", n:NORMAL, l:L({}),
+    f:[["svlA",1,"ctrl","SSO sync"],["dad",-1,"hello","hello"],["acc1",1,"tlv","ID=1"],["acc2",1,"tlv","ID=1"]],
+    d:`<p>SVL, Fast Hello link and ePAgP on Po20 are all up. In this building, though, the SVL members and the DAD link run through the same conduit.</p>`,
+    cliT:"Before", cli:CLI.both },
+  { t:"One cut takes out the SVL and the DAD link", tone:"crit", n:{d1:"active",d2:"promoting"}, l:L({svl:"down",dad:"down"}),
+    f:[], c:[{p:"mid",tone:"crit",text:"Fast Hello lost with the SVL"}],
+    d:`<p>A single event removes the SVL and the Fast Hello path together. Without a third path this would play out exactly like the no-DAD scenario.</p>
+       <p>This is why the white paper asks you to spread SVL members across ASICs and separate physical paths, and why the DAD link should not share fate with the SVL.</p>`,
+    cliT:"Interface events", cli:CLI.cut },
+  { t:"ePAgP through ACC-1 still detects", tone:"warn", n:{d1:"active",d2:"newactive"}, l:L({svl:"down",dad:"down",acc1:"hot",acc2:"hot"}),
+    f:[["acc2",1,"tlvnew","ID=2"],["acc1",-1,"tlvnew","ID=2"]],
+    d:`<p>Po20 is cabled on a different path, so it survives. Switch 2 announces active ID 2, ACC-1 relays it to both members, and Switch 1 sees the change.</p>`,
+    cliT:"Sequence", cli:CLI.pagpRelay },
+  { t:"Recovery completes on ePAgP alone", tone:"ok", n:{d1:"recovery",d2:"newactive"}, l:L({svl:"down",dad:"down",core1:"err",acc1:"err"}),
+    f:[["acc2",-1,"data","data"],["core2",1,"data","data"],["core2",-1,"data",""],["acc2",1,"data",""]],
+    c:[{p:"top",tone:"ok",text:"Dual-active avoided"}],
+    d:`<p>Switch 1 enters recovery mode. After the conduit is repaired it reloads and rejoins as standby.</p>
+       <p>If Po20 had been LACP, nothing would have caught this split. Diverse cabling for SVL and DAD, plus ePAgP on at least one MEC, closes that gap.</p>`,
+    cliT:"Switch 1", cli:CLI.pagpRec }
+  ]}
+];
+
+
+
+const NODES={
+  core:{x:380,y:42,w:200,h:56},
+  d1:{x:130,y:222,w:200,h:96,name:"Dist-SW1",num:"Switch 1 · C9500"},
+  d2:{x:630,y:222,w:200,h:96,name:"Dist-SW2",num:"Switch 2 · C9500"},
+  acc:{x:380,y:442,w:200,h:56}
+};
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+const gN=$("nodes");
+function simpleNode(n,title,sub,stroke){
+  const g=el("g",{},gN);
+  const box=el("rect",{x:n.x,y:n.y,width:n.w,height:n.h,rx:8,class:"nbox",stroke:stroke},g);
+  const t=el("text",{x:n.x+n.w/2,y:n.y+24,"text-anchor":"middle",class:"nname"},g);t.textContent=title;
+  const s=el("text",{x:n.x+n.w/2,y:n.y+43,"text-anchor":"middle",class:"nsub"},g);s.textContent=sub;
+  return {box,sub:s};
+}
+simpleNode(NODES.core,"Core","L3 · OSPF neighbor","var(--ink-3)");
+const accN=simpleNode(NODES.acc,"ACC-1","Catalyst access switch","var(--green)");
+const DN={};
+["d1","d2"].forEach(k=>{
+  const n=NODES[k],g=el("g",{},gN);
+  const box=el("rect",{x:n.x,y:n.y,width:n.w,height:n.h,rx:8,class:"nbox"},g);
+  const clip=el("clipPath",{id:"clip-"+k},g);el("rect",{x:n.x,y:n.y,width:n.w,height:n.h,rx:8},clip);
+  const band=el("rect",{x:n.x,y:n.y,width:n.w,height:24,class:"nband","clip-path":`url(#clip-${k})`},g);
+  const role=el("text",{x:n.x+n.w/2,y:n.y+16.5,"text-anchor":"middle",class:"nrole"},g);
+  const nm=el("text",{x:n.x+n.w/2,y:n.y+50,"text-anchor":"middle",class:"nname"},g);nm.textContent=n.name;
+  const num=el("text",{x:n.x+n.w/2,y:n.y+68,"text-anchor":"middle",class:"nsub"},g);num.textContent=n.num;
+  const sub=el("text",{x:n.x+n.w/2,y:n.y+86,"text-anchor":"middle",class:"nsub"},g);
+  DN[k]={g,box,band,role,sub};
+});
+const LINKS={core1:["p-core1"],core2:["p-core2"],svl:["p-svlA","p-svlB"],dad:["p-dad"],acc1:["p-acc1"],acc2:["p-acc2"]};
+const XPOS={core1:[335,160],core2:[625,160],svl:[480,257],dad:[480,300],acc1:[335,380],acc2:[625,380]};
+const XM={};
+for(const k in XPOS){const [x,y]=XPOS[k],g=el("g",{class:"xm"},$("xmarks"));
+  el("circle",{cx:x,cy:y,r:13,fill:"var(--panel)",stroke:"var(--red)","stroke-width":2},g);
+  el("path",{d:`M${x-6} ${y-6}L${x+6} ${y+6}M${x+6} ${y-6}L${x-6} ${y+6}`},g);XM[k]=g;}
+
+let sc=0, st=0, timer=null;
+try{const h=(location.hash||"").slice(1);const i=SC.findIndex(s=>s.id===h);if(i>=0)sc=i;}catch(e){}
+
+const rail=$("rail"), KIND={base:"Baseline",fail:"Failure",prot:"Protected"}, KTAG={base:"info",fail:"crit",prot:"ok"};
+SC.forEach((s,i)=>{const b=document.createElement("button");b.type="button";b.className=s.kind;b.setAttribute("role","tab");
+  b.innerHTML=`<span class="tag ${KTAG[s.kind]}">${KIND[s.kind]}</span><b>${s.name}</b>`;
+  b.onclick=()=>{stop();sc=i;st=0;render();};rail.appendChild(b);});
+document.querySelectorAll("#toc a[data-sc]").forEach(a=>{a.addEventListener("click",e=>{
+  const i=SC.findIndex(s=>s.id===a.dataset.sc);if(i<0)return;stop();sc=i;st=0;render();});});
+
+let flows=[], raf=null;
+function buildFlows(list){
+  const layer=$("flows");layer.innerHTML="";flows=[];
+  (list||[]).forEach((f,idx)=>{
+    const [pid,dir,kind,label]=f, path=$("p-"+pid), len=path.getTotalLength(), color=FLOW[kind];
+    const g=el("g",{class:"pkt"},layer);
+    const dots=[0,1].map(()=>el("circle",{r:6,fill:color},g));
+    const tx=label?el("text",{fill:color,"text-anchor":"middle"},g):null; if(tx)tx.textContent=label;
+    flows.push({path,len,dir,dots,tx,off:(idx*0.23)%1,speed:kind==="hello"?0.00022:0.00034});
+  });
+  if(!raf) raf=requestAnimationFrame(tick);
+  if(reduce) drawFlows(0);
+}
+function drawFlows(t){
+  flows.forEach(f=>{f.dots.forEach((d,i)=>{
+    const p=reduce?(0.35+i*0.3):((t*f.speed+f.off+i*0.5)%1);
+    const u=f.dir>0?p:1-p, pt=f.path.getPointAtLength(u*f.len);
+    d.setAttribute("cx",pt.x);d.setAttribute("cy",pt.y);
+    if(i===0&&f.tx){f.tx.setAttribute("x",pt.x);f.tx.setAttribute("y",pt.y-12);}
+  });});
+}
+function tick(t){ if(!reduce) drawFlows(t); raf=requestAnimationFrame(tick); }
+
+const TONE={info:["info","Normal"],ok:["ok","Resolved"],warn:["warn","Detecting"],crit:["crit","Fault"]};
+function render(){
+  const S=SC[sc], P=S.steps[st];
+  try{history.replaceState(null,"","#"+S.id);}catch(e){}
+  [...rail.children].forEach((b,i)=>b.setAttribute("aria-selected",i===sc?"true":"false"));
+  document.querySelectorAll("#toc a[data-sc]").forEach(a=>a.classList.toggle("active",a.dataset.sc===S.id));
+  $("scMeta").textContent=S.meta;
+
+  const acc=S.epagp?"Po20 MEC · PAgP · trusted":"Po20 MEC · LACP";
+  $("acc1Txt").textContent=acc;$("acc2Txt").textContent=acc;
+  ["p-acc1","p-acc2"].forEach(id=>$(id).classList.toggle("lacp",!S.epagp));
+  accN.sub.textContent=S.epagp?"ePAgP-capable neighbor":"Catalyst access switch";
+  accN.box.setAttribute("stroke",S.epagp?"var(--green)":"var(--ink-3)");
+
+  for(const k in LINKS){
+    const s=P.l[k];
+    LINKS[k].forEach(id=>{const p=$(id);p.classList.remove("down","err","dim","hot");p.style.display=(s==="none")?"none":"";
+      if(s==="down"||s==="err"||s==="dim"||s==="hot")p.classList.add(s);});
+    XM[k].style.display=(s==="down")?"":"none";
+  }
+  $("dadTxt").style.display=P.l.dad==="none"?"none":"";
+  $("dadTxt").textContent=P.l.dad==="down"?"DAD link · cut":"DAD · Fast Hello";
+  const split=P.l.svl==="down";
+  $("svlTxt").textContent=split?"SVL · all members down":"SVL · 2 × 40G";
+  $("svlTxt").setAttribute("fill",split?"var(--red)":"var(--ink)");
+  $("domain").setAttribute("stroke",split?"var(--red)":"var(--accent)");
+  $("domainTxt").textContent=split?"SV domain 10 · split":"SV domain 10 · one logical switch";
+
+  ["d1","d2"].forEach(k=>{const r=ROLE[P.n[k]],N=DN[k];
+    N.box.setAttribute("stroke",r.c);N.band.setAttribute("fill",r.c);N.role.textContent=r.role;N.sub.textContent=r.sub;
+    N.g.style.opacity=P.n[k]==="down"?.55:1;});
+
+  const cg=$("callouts");cg.innerHTML="";
+  const CY={top:170,mid:372,low:372};
+  (P.c||[]).forEach(c=>{const col=c.tone==="ok"?"var(--green)":c.tone==="warn"?"var(--amber)":"var(--red)";
+    const soft=c.tone==="ok"?"var(--green-soft)":c.tone==="warn"?"var(--amber-soft)":"var(--red-soft)";
+    const g=el("g",{class:"callout-svg"},cg), w=Math.max(120,c.text.length*7.3+28);
+    el("rect",{x:480-w/2,y:CY[c.p]-15,width:w,height:30,rx:15,fill:soft,stroke:col},g);
+    const t=el("text",{x:480,y:CY[c.p]+5,"text-anchor":"middle",fill:col},g);t.textContent=c.text;});
+
+  buildFlows(P.f);
+
+  const tn=TONE[P.tone];
+  $("tone").className="tag "+tn[0];$("tone").textContent=tn[1];
+  $("narrBox").className="callout "+tn[0];
+  $("stepNo").textContent=`${S.name} · step ${st+1} of ${S.steps.length}`;
+  $("stepTitle").textContent=P.t;
+  $("narr").innerHTML=P.d;
+  $("cliTitle").textContent=P.cliT||"CLI";
+  $("cli").innerHTML=P.cli||"";
+  $("figCap").textContent=`Figure ${sc+1}.${st+1} — ${S.name}: ${P.t}.`;
+  const dots=$("dots");dots.innerHTML="";
+  S.steps.forEach((x,i)=>{const b=document.createElement("button");b.type="button";b.textContent=i+1;
+    b.setAttribute("aria-label","Step "+(i+1)+": "+x.t);if(i===st)b.setAttribute("aria-current","step");
+    b.onclick=()=>{stop();st=i;render();};dots.appendChild(b);});
+  $("prev").disabled=st===0&&sc===0;
+  $("next").textContent=st<S.steps.length-1?"Next →":(sc<SC.length-1?"Next scenario →":"Next →");
+  $("next").disabled=st===S.steps.length-1&&sc===SC.length-1;
+}
+function next(){const S=SC[sc];if(st<S.steps.length-1)st++;else if(sc<SC.length-1){sc++;st=0;}else return false;render();return true;}
+function prev(){if(st>0)st--;else if(sc>0){sc--;st=SC[sc].steps.length-1;}render();}
+function stop(){if(timer){clearInterval(timer);timer=null;$("play").textContent="Play";$("play").setAttribute("aria-pressed","false");}}
+$("next").onclick=()=>{stop();next();};
+$("prev").onclick=()=>{stop();prev();};
+$("play").onclick=()=>{if(timer){stop();return;}$("play").textContent="Pause";$("play").setAttribute("aria-pressed","true");
+  timer=setInterval(()=>{if(!next())stop();},6500);};
+document.addEventListener("keydown",e=>{if(e.target.closest&&e.target.closest("input,textarea"))return;
+  if(e.key==="ArrowRight"){stop();next();} if(e.key==="ArrowLeft"){stop();prev();}});
+$("copy").onclick=()=>{const txt=$("cli").textContent;const done=()=>{$("copy").textContent="Copied";setTimeout(()=>$("copy").textContent="Copy",1400);};
+  try{navigator.clipboard.writeText(txt).then(done,selectCli);}catch(e){selectCli();}};
+function selectCli(){const r=document.createRange();r.selectNodeContents($("cli"));const s=getSelection();s.removeAllRanges();s.addRange(r);$("copy").textContent="Selected";}
+$("fullcfg").innerHTML=FULLCFG;
+$("tshoot").innerHTML=`<span class="c">! State and roles</span>
+<span class="h">show switch</span>
+<span class="h">show redundancy</span>
+<span class="h">show romvar</span>                     <span class="c">! SVL/DAD config stored here; domain must match</span>
+<span class="h">show stackwise-virtual link</span>
+<span class="h">show stackwise-virtual dual-active-detection</span>
+<span class="h">show stackwise-virtual dual-active-detection pagp</span>
+
+<span class="c">! Links and optics</span>
+<span class="h">show idprom interface Fo1/0/23</span>
+<span class="h">show interfaces status err-disabled</span>
+<span class="h">show errdisable flap-values</span>
+
+<span class="c">! SVL data path (run 3-4 times, counters should increment)</span>
+<span class="h">show platform software fed switch active fss counters</span>
+<span class="h">show platform software fed switch active fss bundle</span>
+
+<span class="c">! Before opening a TAC case</span>
+<span class="h">show tech-support stackwise-virtual</span>
+<span class="h">request platform software trace archive</span>`;
+
+render();
+})();
+</script>
+</body>
+</html>
