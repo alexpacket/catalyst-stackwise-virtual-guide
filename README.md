@@ -2,7 +2,7 @@
 
 A step-through lab for Cisco Catalyst 9500 StackWise Virtual in a core/distribution/access campus design. It shows what happens when a member fails, when the StackWise Virtual Link (SVL) splits, and how each dual-active detection (DAD) method, Fast Hello and enhanced Port Aggregation Protocol (ePAgP), takes the old active switch out of the network. Each step has an animated topology, an explanation and the matching CLI (command-line interface) output.
 
-**Open the lab:** https://alexpacket.github.io/catalyst-stackwise-virtual-guide/
+**Open the lab:** https://svl.ciscose.com/
 
 ## What's inside
 
@@ -17,7 +17,7 @@ A step-through lab for Cisco Catalyst 9500 StackWise Virtual in a core/distribut
 | --- | --- |
 | `index.html` | The lab: one self-contained HTML page |
 | `404.html` | Shown by GitHub Pages for missing paths |
-| `favicon.svg`, `favicon.png` | Site icons |
+| `favicon.svg`, `image.png` | Site icons |
 | `.nojekyll` | Tells GitHub Pages to serve the files as-is |
 
 ## Updating the lab
